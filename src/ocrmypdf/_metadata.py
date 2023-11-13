@@ -98,9 +98,7 @@ def should_linearize(working_file: Path, context: PdfContext) -> bool:
     For smaller files, linearization is not worth the effort.
     """
     filesize = os.stat(working_file).st_size
-    if filesize > (context.options.fast_web_view * 1_000_000):
-        return True
-    return False
+    return filesize > context.options.fast_web_view * 1_000_000
 
 
 def _fix_metadata(meta_original: PdfMetadata, meta_pdf: PdfMetadata):
@@ -147,10 +145,10 @@ def _set_language(pdf: Pdf, languages: list[str]):
     primary_language_iso639_3 = languages[0]
     if not primary_language_iso639_3:
         return
-    iso639_2 = iso_639_2_from_3(primary_language_iso639_3)
-    if not iso639_2:
+    if iso639_2 := iso_639_2_from_3(primary_language_iso639_3):
+        pdf.Root.Lang = iso639_2
+    else:
         return
-    pdf.Root.Lang = iso639_2
 
 
 def metadata_fixup(

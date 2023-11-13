@@ -156,13 +156,13 @@ def _run_pipeline(
     options: argparse.Namespace,
     plugin_manager: OcrmypdfPluginManager,
 ) -> ExitCode:
-    with manage_work_folder(
-        work_folder=Path(mkdtemp(prefix="ocrmypdf.io.")),
-        retain=options.keep_temporary_files,
-        print_location=options.keep_temporary_files,
-    ) as work_folder, manage_debug_log_handler(
-        options=options, work_folder=work_folder
-    ):
+    with (manage_work_folder(
+            work_folder=Path(mkdtemp(prefix="ocrmypdf.io.")),
+            retain=options.keep_temporary_files,
+            print_location=options.keep_temporary_files,
+        ) as work_folder, manage_debug_log_handler(
+            options=options, work_folder=work_folder
+        )):
         executor = setup_pipeline(options, plugin_manager)
         check_requested_output_file(options)
         start_input_file, original_filename = create_input_file(options, work_folder)
@@ -191,8 +191,7 @@ def _run_pipeline(
         # Execute the pipeline
         optimize_messages = exec_concurrent(context, executor)
 
-        exitcode = report_output_pdf(options, start_input_file, optimize_messages)
-        return exitcode
+        return report_output_pdf(options, start_input_file, optimize_messages)
 
 
 def run_pipeline_cli(

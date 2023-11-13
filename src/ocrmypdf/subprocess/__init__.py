@@ -179,15 +179,13 @@ def get_version(
             f"Could not find program '{program}' on the PATH"
         ) from e
 
-    match = re.match(regex, output.strip())
-    if not match:
+    if match := re.match(regex, output.strip()):
+        return match.group(1)
+    else:
         raise MissingDependencyError(
             f"The program '{program}' did not report its version. "
             f"Message was:\n{output}"
         )
-    version = match.group(1)
-
-    return version
 
 
 MISSING_PROGRAM = '''

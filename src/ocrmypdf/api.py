@@ -113,14 +113,14 @@ def configure_logging(
 
     console.addFilter(PageNumberFilter())
 
-    if verbosity >= 2:
-        fmt = '%(levelname)7s %(name)s -%(pageno)s %(message)s'
-    else:
-        fmt = '%(pageno)s%(message)s'
-
     formatter = None
 
     if not formatter:
+        fmt = (
+            '%(levelname)7s %(name)s -%(pageno)s %(message)s'
+            if verbosity >= 2
+            else '%(pageno)s%(message)s'
+        )
         formatter = logging.Formatter(fmt=fmt)
 
     console.setFormatter(formatter)
@@ -163,18 +163,19 @@ def _kwargs_to_cmdline(
 
         if is_iterable_notstr(val):
             for elem in val:
-                cmdline.append(f"--{cmd_style_arg}")
-                cmdline.append(elem)
+                cmdline.extend((f"--{cmd_style_arg}", elem))
             continue
 
         # We have a parameter
         cmdline.append(f"--{cmd_style_arg}")
-        if isinstance(val, (int, float)):
+        if (
+            isinstance(val, (int, float))
+            or not isinstance(val, str)
+            and isinstance(val, Path)
+        ):
             cmdline.append(str(val))
         elif isinstance(val, str):
             cmdline.append(val)
-        elif isinstance(val, Path):
-            cmdline.append(str(val))
         else:
             raise TypeError(f"{arg}: {val} ({type(val)})")
     return cmdline, deferred

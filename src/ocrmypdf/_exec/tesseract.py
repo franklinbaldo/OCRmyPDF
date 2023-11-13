@@ -180,10 +180,9 @@ def get_orientation(
 
     osd = _parse_tesseract_output(p.stdout)
     angle = int(osd.get('Orientation in degrees', 0))
-    orient_conf = OrientationConfidence(
+    return OrientationConfidence(
         angle=angle, confidence=float(osd.get('Orientation confidence', 0))
     )
-    return orient_conf
 
 
 def get_deskew(

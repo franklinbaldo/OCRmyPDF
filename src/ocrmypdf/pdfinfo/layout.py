@@ -170,9 +170,7 @@ class LTStateAwareChar(LTChar):
 
     def get_text(self) -> str:
         """Get text from this character."""
-        if _is_undefined_char(self._text):
-            return '\ufffd'  # standard 'Unknown symbol'
-        return self._text
+        return '\ufffd' if _is_undefined_char(self._text) else self._text
 
     def __repr__(self) -> str:
         """Return a string representation of this object."""

@@ -27,11 +27,9 @@ def bytes_per_pixel(mode: str) -> int:
     In RGB mode we assume 4 bytes per pixel, which is the case for most
     consumers.
     """
-    if mode in ('1', 'L', 'P'):
+    if mode in {'1', 'L', 'P'}:
         return 1
-    if mode in ('LA', 'PA', 'La') or mode.startswith('I;16'):
-        return 2
-    return 4
+    return 2 if mode in {'LA', 'PA', 'La'} or mode.startswith('I;16') else 4
 
 
 def _calculate_downsample(

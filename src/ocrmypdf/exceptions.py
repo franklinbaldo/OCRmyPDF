@@ -37,9 +37,7 @@ class ExitCodeException(Exception):
     def __str__(self):
         """Return a string representation of the exception."""
         super_msg = super().__str__()  # Don't do str(super())
-        if self.message:
-            return self.message.format(super_msg)
-        return super_msg
+        return self.message.format(super_msg) if self.message else super_msg
 
 
 class BadArgsError(ExitCodeException):
