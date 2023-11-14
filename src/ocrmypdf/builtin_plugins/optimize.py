@@ -118,7 +118,7 @@ def check_options(options):
             version_checker=jbig2enc.version,
             need_version='0.28',
             required_for='--optimize {2,3} | --jbig2-lossy',
-            recommended=True if not options.jbig2_lossy else False,
+            recommended=not options.jbig2_lossy,
         )
 
     if options.optimize == 0 and any(
@@ -151,12 +151,11 @@ def optimize_pdf(
             'jbig2': jbig2enc.available(),
             'pngquant': pngquant.available(),
         }
-        for name, available in image_optimizers.items():
-            if not available:
-                messages.append(
-                    f"The optional dependency '{name}' was not found, so some image "
-                    f"optimizations could not be attempted."
-                )
+        messages.extend(
+            f"The optional dependency '{name}' was not found, so some image optimizations could not be attempted."
+            for name, available in image_optimizers.items()
+            if not available
+        )
     return result_path, messages
 
 

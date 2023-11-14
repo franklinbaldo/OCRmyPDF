@@ -64,14 +64,7 @@ def strip_invisible_text(pdf: Pdf, page: Page):
     text_objects = []
 
     for operands, operator in parse_content_stream(page, ''):
-        if not in_text_obj:
-            if operator == Operator('BT'):
-                in_text_obj = True
-                render_mode = 0
-                text_objects.append((operands, operator))
-            else:
-                stream.append((operands, operator))
-        else:
+        if in_text_obj:
             if operator == Operator('Tr'):
                 render_mode = operands[0]
             text_objects.append((operands, operator))
@@ -81,6 +74,12 @@ def strip_invisible_text(pdf: Pdf, page: Page):
                     stream.extend(text_objects)
                 text_objects.clear()
 
+        elif operator == Operator('BT'):
+            in_text_obj = True
+            render_mode = 0
+            text_objects.append((operands, operator))
+        else:
+            stream.append((operands, operator))
     content_stream = unparse_content_stream(stream)
     page.Contents = Stream(pdf, content_stream)
 
@@ -279,7 +278,7 @@ class OcrGrafter:
             # Because of rounding of DPI, we might get a text layer that is not
             # identically sized to the target page. Scale to adjust. Normally this
             # is within 0.998.
-            if text_rotation in (90, 270):
+            if text_rotation in {90, 270}:
                 wt, ht = ht, wt
             scale_x = wp / wt
             scale_y = hp / ht

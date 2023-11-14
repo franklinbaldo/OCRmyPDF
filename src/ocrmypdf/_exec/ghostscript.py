@@ -180,17 +180,16 @@ class GhostscriptFollower:
     def __call__(self, line):
         if not self.progressbar_class:
             return
-        if not self.progressbar:
-            m = self.re_process.match(line.strip())
-            if m:
-                self.count = int(m.group(1))
-                self.progressbar = self.progressbar_class(
-                    total=self.count, desc="PDF/A conversion", unit='page'
-                )
-                return
-        else:
+        if self.progressbar:
             if self.re_page.match(line.strip()):
                 self.progressbar.update()
+
+        elif m := self.re_process.match(line.strip()):
+            self.count = int(m.group(1))
+            self.progressbar = self.progressbar_class(
+                total=self.count, desc="PDF/A conversion", unit='page'
+            )
+            return
 
 
 def generate_pdfa(
@@ -242,27 +241,28 @@ def generate_pdfa(
     # is set; see:
     # https://bugs.ghostscript.com/show_bug.cgi?id=699392
     args_gs = (
-        [
-            GS,
-            "-dBATCH",
-            "-dNOPAUSE",
-            "-dSAFER",
-            f"-dCompatibilityLevel={str(pdf_version)}",
-            "-sDEVICE=pdfwrite",
-            "-dAutoRotatePages=/None",
-            f"-sColorConversionStrategy={color_conversion_strategy}",
-        ]
-        + (['-dPDFSTOPONERROR'] if stop_on_error else [])
+        (
+            [
+                GS,
+                "-dBATCH",
+                "-dNOPAUSE",
+                "-dSAFER",
+                f"-dCompatibilityLevel={pdf_version}",
+                "-sDEVICE=pdfwrite",
+                "-dAutoRotatePages=/None",
+                f"-sColorConversionStrategy={color_conversion_strategy}",
+            ]
+            + (['-dPDFSTOPONERROR'] if stop_on_error else [])
+        )
         + compression_args
-        + [
-            "-dJPEGQ=95",
-            f"-dPDFA={pdfa_part}",
-            "-dPDFACompatibilityPolicy=1",
-            "-o",
-            "-",
-            "-sstdout=%stderr",  # Literal %s, not string interpolation
-        ]
-    )
+    ) + [
+        "-dJPEGQ=95",
+        f"-dPDFA={pdfa_part}",
+        "-dPDFACompatibilityPolicy=1",
+        "-o",
+        "-",
+        "-sstdout=%stderr",  # Literal %s, not string interpolation
+    ]
     args_gs.extend(fspath(s) for s in pdf_pages)  # Stringify Path objs
     try:
         with Path(output_file).open('wb') as output:

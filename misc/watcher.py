@@ -48,15 +48,13 @@ class LoggingLevelEnum(str, Enum):
 
 
 def get_output_dir(root: Path, basename: str, output_dir_year_month: bool) -> Path:
-    if output_dir_year_month:
-        today = datetime.today()
-        output_directory_year_month = root / str(today.year) / f'{today.month:02d}'
-        if not output_directory_year_month.exists():
-            output_directory_year_month.mkdir(parents=True, exist_ok=True)
-        output_path = Path(output_directory_year_month) / basename
-    else:
-        output_path = root / basename
-    return output_path
+    if not output_dir_year_month:
+        return root / basename
+    today = datetime.now()
+    output_directory_year_month = root / str(today.year) / f'{today.month:02d}'
+    if not output_directory_year_month.exists():
+        output_directory_year_month.mkdir(parents=True, exist_ok=True)
+    return Path(output_directory_year_month) / basename
 
 
 def wait_for_file_ready(
@@ -73,7 +71,7 @@ def wait_for_file_ready(
             with pikepdf.Pdf.open(file_path) as pdf:
                 log.debug(f"{file_path} ready with {pdf.pages} pages")
                 return True
-        except (FileNotFoundError, OSError) as e:
+        except OSError as e:
             log.info(f"File {file_path} is not ready yet")
             log.debug("Exception was", exc_info=e)
             time.sleep(poll_new_file_seconds)
@@ -117,15 +115,12 @@ def execute_ocrmypdf(
         output_file=output_path,
         **ocrmypdf_kwargs,
     )
-    if exit_code == 0:
-        if on_success_delete:
-            log.info(f'OCR is done. Deleting: {file_path}')
-            file_path.unlink()
-        elif on_success_archive:
-            log.info(f'OCR is done. Archiving {file_path.name} to {archive_dir}')
-            shutil.move(file_path, f'{archive_dir}/{file_path.name}')
-        else:
-            log.info('OCR is done')
+    if exit_code == 0 and on_success_delete:
+        log.info(f'OCR is done. Deleting: {file_path}')
+        file_path.unlink()
+    elif exit_code == 0 and on_success_archive:
+        log.info(f'OCR is done. Archiving {file_path.name} to {archive_dir}')
+        shutil.move(file_path, f'{archive_dir}/{file_path.name}')
     else:
         log.info('OCR is done')
 
@@ -315,10 +310,7 @@ def main(
             'output_dir_year_month': output_dir_year_month,
         },
     )
-    if use_polling:
-        observer = PollingObserver()
-    else:
-        observer = Observer()
+    observer = PollingObserver() if use_polling else Observer()
     observer.schedule(handler, input_dir, recursive=True)
     observer.start()
     typer.echo(f"Watching {input_dir} for new PDFs. Press Ctrl+C to exit.")

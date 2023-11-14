@@ -122,11 +122,9 @@ class HOCRResult:
     def __getstate__(self):
         """Return state values to be pickled."""
         return {
-            k: (
-                ('Path://' + str(v))
-                if k in ('pdf_page_from_image', 'hocr', 'textpdf') and v is not None
-                else v
-            )
+            k: f'Path://{str(v)}'
+            if k in ('pdf_page_from_image', 'hocr', 'textpdf') and v is not None
+            else v
             for k, v in self.__dict__.items()
         }
 
@@ -296,8 +294,7 @@ def setup_pipeline(
         options.jobs = available_cpu_count()
 
     pikepdf_enable_mmap()
-    executor = setup_executor(plugin_manager)
-    return executor
+    return setup_executor(plugin_manager)
 
 
 def preprocess(
@@ -432,9 +429,7 @@ def report_output_pdf(options, start_input_file, optimize_messages) -> ExitCode:
         log.info("Output sent to stdout")
     elif hasattr(options.output_file, 'writable') and options.output_file.writable():
         log.info("Output written to stream")
-    elif samefile(options.output_file, Path(os.devnull)):
-        pass  # Say nothing when sending to dev null
-    else:
+    elif not samefile(options.output_file, Path(os.devnull)):
         if options.output_type.startswith('pdfa'):
             pdfa_info = file_claims_pdfa(options.output_file)
             if pdfa_info['pass']:

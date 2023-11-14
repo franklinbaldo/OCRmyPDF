@@ -129,8 +129,7 @@ def _pdf_guess_version(input_file: Path, search_window=1024) -> str:
     """
     with open(input_file, 'rb') as f:
         signature = f.read(search_window)
-    m = re.search(br'%PDF-(\d\.\d)', signature)
-    if m:
+    if m := re.search(br'%PDF-(\d\.\d)', signature):
         return m.group(1).decode('ascii')
     return ''
 
@@ -206,18 +205,17 @@ def validate_pdfinfo_options(context: PdfContext) -> None:
                 "This PDF has a user fillable form. --redo-ocr is not "
                 "currently possible on such files."
             )
-        else:
-            log.warning(
-                "This PDF has a fillable form. "
-                "Chances are it is a pure digital "
-                "document that does not need OCR."
+        log.warning(
+            "This PDF has a fillable form. "
+            "Chances are it is a pure digital "
+            "document that does not need OCR."
+        )
+        if not options.force_ocr:
+            log.info(
+                "Use the option --force-ocr to produce an image of the "
+                "form and all filled form fields. The output PDF will be "
+                "'flattened' and will no longer be fillable."
             )
-            if not options.force_ocr:
-                log.info(
-                    "Use the option --force-ocr to produce an image of the "
-                    "form and all filled form fields. The output PDF will be "
-                    "'flattened' and will no longer be fillable."
-                )
     if pdfinfo.is_tagged:
         if options.force_ocr or options.skip_text or options.redo_ocr:
             log.warning(
@@ -296,7 +294,11 @@ def is_ocr_required(page_context: PageContext) -> bool:
         log.debug(f"skipped {pageinfo.pageno} as requested by --pages {options.pages}")
         ocr_required = False
     elif pageinfo.has_text:
-        if not options.force_ocr and not (options.skip_text or options.redo_ocr):
+        if (
+            not options.force_ocr
+            and not options.skip_text
+            and not options.redo_ocr
+        ):
             raise PriorOcrFoundError(
                 "page already has text! - aborting (use --force-ocr to force OCR; "
                 " see also help for the arguments --skip-text and --redo-ocr"
@@ -313,7 +315,7 @@ def is_ocr_required(page_context: PageContext) -> bool:
             else:
                 log.info("redoing OCR")
             ocr_required = True
-        elif options.skip_text:
+        else:
             log.info("skipping all processing on this page")
             ocr_required = False
     elif not pageinfo.images and not options.lossless_reconstruction:
@@ -387,20 +389,20 @@ def describe_rotation(
 ) -> str:
     """Describe the page rotation we are going to perform (or not perform)."""
     direction = {0: '⇧', 90: '⇨', 180: '⇩', 270: '⇦'}
-    turns = {0: ' ', 90: '⬏', 180: '↻', 270: '⬑'}
-
     existing_rotation = page_context.pageinfo.rotation
     action = ''
     if orient_conf.confidence >= page_context.options.rotate_pages_threshold:
-        if correction != 0:
-            action = 'will rotate ' + turns[correction]
-        else:
-            action = 'rotation appears correct'
+        turns = {0: ' ', 90: '⬏', 180: '↻', 270: '⬑'}
+
+        action = (
+            f'will rotate {turns[correction]}'
+            if correction != 0
+            else 'rotation appears correct'
+        )
+    elif correction != 0:
+        action = 'confidence too low to rotate'
     else:
-        if correction != 0:
-            action = 'confidence too low to rotate'
-        else:
-            action = 'no change'
+        action = 'no change'
 
     facing = ''
 
@@ -445,11 +447,11 @@ def calculate_image_dpi(page_context: PageContext) -> Resolution:
     """Calculate the DPI for the page image."""
     pageinfo = page_context.pageinfo
     dpi_profile = pageinfo.page_dpi_profile()
-    if dpi_profile and dpi_profile.average_to_max_dpi_ratio < 0.8:
-        image_dpi = Resolution(dpi_profile.weighted_dpi, dpi_profile.weighted_dpi)
-    else:
-        image_dpi = pageinfo.dpi
-    return image_dpi
+    return (
+        Resolution(dpi_profile.weighted_dpi, dpi_profile.weighted_dpi)
+        if dpi_profile and dpi_profile.average_to_max_dpi_ratio < 0.8
+        else pageinfo.dpi
+    )
 
 
 def calculate_raster_dpi(page_context: PageContext):
@@ -605,12 +607,7 @@ def create_ocr_image(image: Path, page_context: PageContext) -> Path:
         log.debug('resolution %r', im.info['dpi'])
 
         if not options.force_ocr:
-            # Do not mask text areas when forcing OCR, because we need to OCR
-            # all text areas
-            mask = None  # Exclude both visible and invisible text from OCR
-            if options.redo_ocr:
-                mask = True  # Mask visible text, but not invisible text
-
+            mask = True if options.redo_ocr else None
             draw = ImageDraw.ImageDraw(im)
             for textarea in page_context.pageinfo.get_textareas(
                 visible=mask, corrupt=None
@@ -747,8 +744,8 @@ def render_hocr_page(hocr: Path, page_context: PageContext) -> Path:
     hocrtransform.to_pdf(
         out_filename=output_file,
         image_filename=None,
-        show_bounding_boxes=False if not debug_mode else True,
-        invisible_text=True if not debug_mode else False,
+        show_bounding_boxes=debug_mode,
+        invisible_text=not debug_mode,
         interword_spaces=True,
     )
     return output_file
@@ -835,9 +832,7 @@ def should_linearize(working_file: Path, context: PdfContext) -> bool:
     For smaller files, linearization is not worth the effort.
     """
     filesize = os.stat(working_file).st_size
-    if filesize > (context.options.fast_web_view * 1_000_000):
-        return True
-    return False
+    return filesize > context.options.fast_web_view * 1_000_000
 
 
 def get_pdf_save_settings(output_type: str) -> dict[str, Any]:
@@ -930,9 +925,8 @@ def enumerate_compress_ranges(
                 yield (skipped_from, index - 1), None
                 skipped_from = None
             yield (index, index), txt_file
-        else:
-            if skipped_from is None:
-                skipped_from = index
+        elif skipped_from is None:
+            skipped_from = index
     if skipped_from is not None:
         yield (skipped_from, index), None
 
@@ -955,10 +949,7 @@ def merge_sidecars(txt_files: Iterable[Path | None], context: PdfContext) -> Pat
                 # others don't. Remove it if it exists, since we add one manually.
                 stream.write(txt.removesuffix('\f'))
             else:
-                if from_ != to_:
-                    pages = f'{from_}-{to_}'
-                else:
-                    pages = f'{from_}'
+                pages = f'{from_}-{to_}' if from_ != to_ else f'{from_}'
                 stream.write(f'[OCR skipped on page(s) {pages}]')
     return output_file
 

@@ -11,6 +11,7 @@ has text. OCRmyPDF will detect files that already have text.
 You should edit this script to meet your needs.
 """
 
+
 from __future__ import annotations
 
 import logging
@@ -24,11 +25,7 @@ import ocrmypdf
 
 script_dir = Path(__file__).parent
 
-if len(sys.argv) > 1:
-    start_dir = Path(sys.argv[1])
-else:
-    start_dir = Path('.')
-
+start_dir = Path(sys.argv[1]) if len(sys.argv) > 1 else Path('.')
 if len(sys.argv) > 2:
     log_file = Path(sys.argv[2])
 else:

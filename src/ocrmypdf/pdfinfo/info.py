@@ -370,11 +370,7 @@ class ImageInfo:
         # If /ImageMask is true, then this image is a stencil mask
         # (Images that draw with this stencil mask will have a reference to
         # it in their /Mask, but we don't actually need that information)
-        if pim.image_mask:
-            self._type = 'stencil'
-        else:
-            self._type = 'image'
-
+        self._type = 'stencil' if pim.image_mask else 'image'
         self._bpc = int(pim.bits_per_component)
         try:
             self._enc = FRIENDLY_ENCODING.get(pim.filters[0])
@@ -880,10 +876,10 @@ class PageInfo:
 
         userunit_shorthand = (userunit, 0, 0, userunit, 0, 0)
 
+        self._images = []
         if check_this_page:
             self._has_vector = False
             self._has_text = False
-            self._images = []
             for info in _process_content_streams(
                 pdf=pdf, container=page, shorthand=userunit_shorthand
             ):
@@ -898,8 +894,6 @@ class PageInfo:
         else:
             self._has_vector = None  # i.e. "no information"
             self._has_text = None
-            self._images = []
-
         self._dpi = None
         if self._images:
             dpi = Resolution(0.0, 0.0).take_max(
@@ -1000,9 +994,7 @@ class PageInfo:
     @property
     def dpi(self) -> Resolution:
         """Return DPI needed to render all images on the page."""
-        if self._dpi is None:
-            return Resolution(0.0, 0.0)
-        return self._dpi
+        return Resolution(0.0, 0.0) if self._dpi is None else self._dpi
 
     @property
     def userunit(self) -> Decimal:
@@ -1012,10 +1004,7 @@ class PageInfo:
     @property
     def min_version(self) -> str:
         """Return minimum PDF version needed to render this page."""
-        if self.userunit is not None:
-            return '1.6'
-        else:
-            return '1.5'
+        return '1.6' if self.userunit is not None else '1.5'
 
     def page_dpi_profile(self) -> PageResolutionProfile | None:
         """Return information about the DPIs of the page.
